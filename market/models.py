@@ -90,12 +90,13 @@ class SubscriptionManager(ProductContainerManager):
 
         last_classes_ended_week_ago = Class.objects.values(
             'subscription').annotate(
-            last_class_date=Max('timeline__end')).filter(
-            is_scheduled=True, last_class_date__lt=week_ago_date)
+            last_class_date_end=Max('timeline__end')).annotate(
+            last_class_date_start=Max('timeline__start')).filter(
+            is_scheduled=True, last_class_date_end__lt=week_ago_date, last_class_date_start__lt=week_ago_date)
 
         forgotten_subscriptions = self.get_queryset().filter(
             pk__in=last_classes_ended_week_ago.values('subscription')).filter(
-            notification_sent=False).exclude(
+            reminder_sent=False).exclude(
             pk__in=self.due())
 
         return forgotten_subscriptions
@@ -122,7 +123,7 @@ class Subscription(ProductContainer):
 
     first_lesson_date = models.DateTimeField('Date of the first lesson', editable=False, null=True)
 
-    notification_sent = models.BooleanField('Was the subscription reminder notification sent', default=False)
+    reminder_sent = models.BooleanField('Was the subscription reminder notification sent', default=False)
 
     def __str__(self):
         return self.name_for_user
