@@ -7,7 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, Max
 from django.utils import timezone
 from djmoney.models.fields import MoneyField
 
@@ -95,7 +95,7 @@ class SubscriptionManager(ProductContainerManager):
 
         forgotten_subscriptions = self.get_queryset().filter(
             pk__in=last_classes_ended_week_ago.values('subscription')).filter(
-            first_lesson_date__isnull=False, notification_sent=False).exclude(
+            notification_sent=False).exclude(
             pk__in=self.due())
 
         return forgotten_subscriptions
