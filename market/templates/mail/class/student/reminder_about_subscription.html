@@ -1,0 +1,18 @@
+{% extends "mail_templated/base.tpl" %}
+{% load humanize %}
+
+{% block subject %}
+We look forward to your return&#10084;&#65039;
+{% endblock %}
+
+{% block body %}
+Dear {{ subscription.customer.first_name | capfirst }},
+
+It seems like you haven't been attending classes in over a week :(
+
+We're here to cheer you on - you've done a great job. Don't stop, move on, learn new things! Make the most of your subscription!
+
+If you have any questions — simply reply to this message, and we'll help you.
+
+{% include 'mailer/_signature.html' %}
+{% endblock %}

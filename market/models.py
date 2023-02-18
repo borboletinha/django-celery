@@ -95,7 +95,7 @@ class SubscriptionManager(ProductContainerManager):
 
         forgotten_subscriptions = self.get_queryset().filter(
             pk__in=last_classes_ended_week_ago.values('subscription')).filter(
-            notification_sent=False).exclude(
+            first_lesson_date__isnull=False, notification_sent=False).exclude(
             pk__in=self.due())
 
         return forgotten_subscriptions
