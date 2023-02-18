@@ -324,7 +324,7 @@ CELERYBEAT_SCHEDULE = {
     },
     'send_reminder_about_forgotten_subscription': {
         'task': 'market.tasks.send_reminder_about_forgotten_subscription',
-        'schedule': crontab(minutes=0, hour=15)
+        'schedule': crontab(hour=15)
     },
 }
 
