@@ -7,7 +7,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, Max
 from django.utils import timezone
 from djmoney.models.fields import MoneyField
 
@@ -82,6 +82,25 @@ class SubscriptionManager(ProductContainerManager):
             Q(first_lesson_date__lte=edge_date) | Q(first_lesson_date__isnull=True, buy_date__lte=edge_date)
         )
 
+    def forgotten(self):
+        """
+        Find subscriptions that are forgotten, e.g. were not user for more than a week
+        """
+        week_ago_date = timezone.now() - timedelta(weeks=1)
+
+        last_classes_ended_week_ago = Class.objects.values(
+            'subscription').annotate(
+            last_class_date_end=Max('timeline__end')).annotate(
+            last_class_date_start=Max('timeline__start')).filter(
+            is_scheduled=True, last_class_date_end__lt=week_ago_date, last_class_date_start__lt=week_ago_date)
+
+        forgotten_subscriptions = self.get_queryset().filter(
+            pk__in=last_classes_ended_week_ago.values('subscription')).filter(
+            first_lesson_date__isnull=False, reminder_sent=False).exclude(
+            pk__in=self.due())
+
+        return forgotten_subscriptions
+
 
 class Subscription(ProductContainer):
     """
@@ -103,6 +122,8 @@ class Subscription(ProductContainer):
     duration = models.DurationField(editable=False)  # every subscription cares a duration field, taken from its product
 
     first_lesson_date = models.DateTimeField('Date of the first lesson', editable=False, null=True)
+
+    reminder_sent = models.BooleanField('Was the subscription reminder notification sent', default=False)
 
     def __str__(self):
         return self.name_for_user

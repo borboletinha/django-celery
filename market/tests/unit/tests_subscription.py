@@ -16,7 +16,7 @@ class TestSubscriptionUnit(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.product = Product1.objects.get(pk=1)
-        cls.product.duration = timedelta(days=5)
+        cls.product.duration = timedelta(days=50)
         cls.product.save()
 
         cls.customer = create_customer()
@@ -30,12 +30,13 @@ class TestSubscriptionUnit(TestCase):
         self.s.save()
 
     @patch('market.models.signals.class_scheduled.send')
-    def _schedule(self, c, date, *args):
+    def _schedule(self, c, date, *args, **kwargs):
         c.timeline = mixer.blend(
             'timeline.Entry',
             lesson_type=c.lesson_type,
             teacher=create_teacher(),
             start=date,
+            **kwargs
         )
         c.save()
 
@@ -43,7 +44,7 @@ class TestSubscriptionUnit(TestCase):
         self.s.first_lesson_date = self.tzdatetime(2032, 12, 2, 12, 0)
         self.s.save()
         self.assertFalse(self.s.is_due())
-        with freeze_time('2032-12-10 12:00'):  # move 9 days forward
+        with freeze_time('2033-2-1 12:00'):  # move 2 months forward
             self.assertTrue(self.s.is_due())
 
     def test_is_due_for_subscription_without_any_completed_class(self):
@@ -51,8 +52,47 @@ class TestSubscriptionUnit(TestCase):
         For subscription without classes is_due should be based on their buy_date
         """
         self.assertFalse(self.s.is_due())
-        with freeze_time('2032-12-10 12:00'):  # move 9 days forward
+        with freeze_time('2033-2-1 12:00'):  # move 2 months forward
             self.assertTrue(self.s.is_due())
+
+    def test_is_forgotten(self):
+        """
+        Should return the number of forgotten subscriptions
+        """
+        classes = self.s.classes.all()
+        self._schedule(
+            classes[0],
+            self.tzdatetime(2032, 12, 2, 12, 0),
+            is_finished=True,
+            end=self.tzdatetime(2032, 12, 2, 13, 0))
+
+        self._schedule(
+            classes[1],
+            self.tzdatetime(2032, 12, 3, 12, 0),
+            is_finished=True,
+            end=self.tzdatetime(2032, 12, 3, 13, 0))
+
+        with freeze_time('2032-12-15 12:00'):
+            self.assertEqual(Subscription.objects.forgotten().count(), 1)
+
+    def test_is_not_forgotten_if_due(self):
+        """
+        Should not return a forgotten subscription if it is due
+        """
+        classes = self.s.classes.all()
+        self._schedule(
+            classes[0],
+            self.tzdatetime(2032, 12, 2, 12, 0),
+            is_finished=True,
+            end=self.tzdatetime(2032, 12, 2, 13, 0))
+
+        self._schedule(
+            classes[1],
+            self.tzdatetime(2032, 12, 3, 12, 0),
+            is_finished=True,
+            end=self.tzdatetime(2032, 12, 3, 13, 0))
+
+        self.assertEqual(Subscription.objects.forgotten().count(), 0)
 
     def test_update_first_lesson_date(self):
         first_class = self.s.classes.first()
